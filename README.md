@@ -2,7 +2,7 @@
 
 React + Vite UI for **Bare**, an AI-native mini CRM for a fictional skincare D2C brand.
 
-> **Repository note:** This is the **frontend** repo. The FastAPI backend and channel-stub live in a separate repository. When pushing to GitHub, use the contents of this `frontend/` folder as the **repository root** (not the parent monorepo folder).
+> **Repository note:** Published as **`bare_frontend`** on GitHub (this `frontend/` folder is the repo root). For local full-stack work, the backend lives alongside this folder in the parent monorepo.
 
 ## Stack
 
@@ -17,35 +17,43 @@ React + Vite UI for **Bare**, an AI-native mini CRM for a fictional skincare D2C
 
 - Node.js 18+
 - npm
-- A running CRM backend on port 8000 (see the backend repository)
+- CRM backend on port 8000 (and channel-stub on 8001 for local campaign delivery)
 
 ## Local development
 
+From this directory:
+
 ```bash
 npm install
-cp .env.example .env.local    # optional — only needed if backend is not on localhost:8000
 npm run dev
 ```
 
 Open `http://localhost:5173`.
 
-The Vite dev server proxies `/api` requests to `http://localhost:8000` by default. Start the CRM backend and channel-stub before testing campaign send flows.
+The Vite dev server proxies `/api` to `http://localhost:8000` by default (`vite.config.ts`). All API calls go through `src/api/client.ts`.
+
+Optional: create `.env.local` only if you need a non-default backend URL at build time:
+
+```bash
+# .env.local — do not commit
+VITE_CRM_API_URL=http://localhost:8000
+```
+
+Do **not** copy `.env.example` verbatim into `.env.local` — it is a template with commented placeholders only.
 
 ## Environment variables
 
-Create `.env.local` (not committed) for local overrides:
-
-| Variable | Required | Default | Description |
+| Variable | Required | Default behavior | Description |
 |---|---|---|---|
-| `VITE_CRM_API_URL` | No | *(empty — uses `/api` proxy)* | Backend base URL, e.g. `http://localhost:8000` |
+| `VITE_CRM_API_URL` | No | Dev: `/api` via Vite proxy; Prod: Railway fallback in `client.ts` if unset at build | Backend base URL without `/api` suffix |
 
-In development, leaving this unset uses the Vite proxy defined in `vite.config.ts`.
+### API URL resolution (`src/api/client.ts`)
 
-For production builds, set `VITE_CRM_API_URL` to your deployed backend URL **at build time**:
+1. `VITE_CRM_API_URL` when set at build time → `{url}/api`
+2. Local dev (`localhost` / `127.0.0.1`) → `/api` (Vite proxy)
+3. Production without env → hardcoded Railway backend fallback
 
-```bash
-VITE_CRM_API_URL=https://your-backend.example.com npm run build
-```
+Set `VITE_CRM_API_URL` in Vercel project settings for production builds.
 
 ## Scripts
 
@@ -53,7 +61,7 @@ VITE_CRM_API_URL=https://your-backend.example.com npm run build
 |---|---|
 | `npm run dev` | Start dev server on port 5173 |
 | `npm run build` | Type-check and build for production → `dist/` |
-| `npm run preview` | Preview the production build locally |
+| `npm run preview` | Preview production build (uses same `/api` proxy as dev) |
 
 ## Production build
 
@@ -62,7 +70,7 @@ npm ci
 VITE_CRM_API_URL=https://your-backend.example.com npm run build
 ```
 
-Serve the `dist/` folder with any static host (Vercel, Netlify, Nginx, S3 + CloudFront, etc.).
+Serve `dist/` with any static host (Vercel, Netlify, Nginx, etc.).
 
 ### Docker
 
@@ -74,7 +82,7 @@ docker build \
 docker run -p 8080:80 bare-frontend
 ```
 
-Open `http://localhost:8080`.
+Open `http://localhost:8080`. The API URL must be supplied at **build** time via `VITE_CRM_API_URL`.
 
 ## Pages
 
@@ -93,25 +101,10 @@ Open `http://localhost:8080`.
 
 ```
 src/
-├── api/           # Typed API client modules
+├── api/           # Typed API client (single entry: client.ts)
 ├── components/    # Shared UI components
 ├── copilot/       # AI co-pilot context and hooks
 ├── hooks/         # useFetch, usePolling, useSegmentPreview, usePageTitle
 ├── lib/           # Utilities (formatting, cn)
 └── pages/         # Route-level page components
 ```
-
-## Pushing to GitHub
-
-Copy this folder's contents to a new directory (or push from here directly):
-
-```bash
-cd frontend
-git init
-git add .
-git commit -m "Initial frontend submission"
-git remote add origin https://github.com/<you>/bare-frontend.git
-git push -u origin main
-```
-
-Do **not** include `node_modules/`, `dist/`, or `.env.local`.
